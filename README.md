@@ -1,5 +1,7 @@
 # Terminal Deck
 
+[사용자 매뉴얼](docs/USER_MANUAL.md) · [화면 캡처 및 SNS 게시 자료](docs/SOCIAL_POSTS.md) · [공개 Release 다운로드](https://github.com/nothing2that-sys/terminal_deck/releases/latest)
+
 A Windows desktop workspace for multiple PowerShell terminals, built with Electron,
 xterm.js, and node-pty. Arrange independent sessions in a 4 × 4 deck, save workspaces,
 and use command history, favorites, and command blocks.
@@ -79,8 +81,8 @@ Deck**에 여러 터미널을 동시에 배치해 쓴다.
 
 - 여러 작업 공간을 각각 별도 창(별도 앱 인스턴스)으로 열 수 있다.
 - 같은 작업 공간을 두 번 열 수는 없다(실행 중 표시와 잠금).
-- 작업 공간별로 일반/관리자 권한을 지정한다. 권한이 다르면 선택 시 UAC 또는 일반
-  Explorer 토큰으로 앱을 다시 시작한 뒤 해당 작업 공간을 자동으로 연다.
+- 작업 공간별로 일반/관리자 권한을 지정한다. 관리자 터미널은 UAC 승인 후 별도
+  broker에서 실행하고, 앱은 일반 권한으로 상태를 관리한다.
 - 실제 관리자 실행 상태는 상단, 세션 목록, 타일에 `관리자`로 표시된다.
 - **일회성 작업 공간**은 세션을 저장하지 않고 공용 설정만 공유한다.
 
@@ -174,10 +176,11 @@ Deck**에 여러 터미널을 동시에 배치해 쓴다.
 - 한글 입출력, CP949 외부 출력 처리
 - 선택이 있으면 `Ctrl+C`는 복사, 없으면 인터럽트. `Ctrl+Shift+C`는 항상 복사
 - `Ctrl+V` / `Ctrl+Shift+V` 붙여넣기(중복 입력 없음)
-- 각 타일 header에서 클립보드 내용을 바로 `붙여넣기`하고 Enter까지 보내거나,
-  PowerShell prompt에 `cls`를 실행하면서 그 세션의 명령 블록도 초기화한다.
-  `로그 복사`는 해당 타일 terminal의 전체 로그를 복사하고, 제목 옆 `↩`은
-  terminal을 처음 등록한 폴더로 이동한다
+- 각 타일 header의 `붙여넣기`는 내용을 넣는다. 실행까지 하려면 메뉴의
+  `붙여넣고 실행`을 사용한다. 여러 줄·위험 패턴은 확인 메뉴에서 대상을 확인한다.
+- `CLS`는 PowerShell prompt에서 화면과 해당 세션의 명령 블록을 초기화한다.
+  `로그 복사`는 전체 터미널 로그를 복사한다. 타일 제목의 세션 이름을 누르면
+  PowerShell prompt에서 처음 등록한 폴더로 이동한다.
 - Claude/Codex 같은 대화형 CLI 안에서는 명령 블록을 만들지 않는다. 실행 중에는
   블록 패널의 `CLI 응답 복사`로 현재 전체화면 또는 CLI 시작 이후 일반 버퍼를
   한 번에 복사한다. CLI가 화면에서 제거한 이전 내용은 포함되지 않을 수 있다
