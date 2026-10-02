@@ -2341,6 +2341,8 @@ async function verify(window) {
     );
     description.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     document.querySelector('.deck-tile-description-edit').value = 'blur 뒤에도 전환';
+    // DOM click() does not focus a button; reproduce a real pointer focus change.
+    document.querySelector('#collapse-session-panel').focus();
     document.querySelector('#collapse-session-panel').click();
     const shortcut = [...document.querySelectorAll('.rotation-shortcut')]
       .find((button) => button.querySelector('.rotation-shortcut-name').textContent === '순환 엡실론');
