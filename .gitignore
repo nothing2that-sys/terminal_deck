@@ -1,0 +1,17 @@
+node_modules/
+dist/
+out/
+release/
+*.log
+.env
+.env.*
+!.env.example
+.claude/
+.codex/
+.agents/
+.vscode/
+.idea/
+coverage/
+*.pfx
+*.p12
+*.pem

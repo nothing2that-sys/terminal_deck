@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8">
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Deck</title>
+    <link rel="stylesheet" href="./dist/renderer.css">
+  </head>
+  <body>
+    <div class="session-info">
+      <nav id="rotation-shortcuts" aria-label="순환 terminal 빠른 전환"></nav>
+      <span class="session-info-spacer"></span>
+      <span id="deck-edit-status" class="deck-edit-status" role="status" aria-live="polite"></span>
+      <span id="state-save-status" class="state-save-status" role="alert" hidden></span>
+      <div class="attention-navigation" aria-label="주의가 필요한 세션 이동">
+        <button id="open-attention-center" type="button" disabled>확인 0</button>
+        <button id="next-complete" type="button" disabled>완료 0</button>
+        <button id="next-failed" type="button" disabled>실패 0</button>
+      </div>
+      <div id="favorite-shortcuts" aria-label="즐겨찾기 바로 가기"></div>
+      <span id="workspace-elevation-badge">현재 권한: 확인 불가</span>
+      <div class="session-quick-actions">
+        <button
+          id="open-quick-switcher"
+          type="button"
+          title="세션 빠른 전환 (Ctrl+Shift+P)"
+          disabled
+        >세션 찾기</button>
+        <button id="start-deck-edit" type="button">배치 편집</button>
+        <button id="commit-deck-edit" type="button" hidden>배치 완료</button>
+        <button id="cancel-deck-edit" type="button" hidden>배치 취소</button>
+        <details id="topbar-more" class="topbar-more">
+          <summary aria-label="더 보기" title="더 보기">⋯</summary>
+          <div class="topbar-more-menu">
+            <button id="open-settings" type="button">설정</button>
+            <button id="open-diagnostics" type="button">진단</button>
+          </div>
+        </details>
+      </div>
+    </div>
+    <dialog id="workspace-dialog">
+      <section class="workspace-picker">
+        <header class="workspace-picker-header">
+          <div>
+            <h1>작업 공간 선택</h1>
+            <p>기존 작업을 이어서 열거나 새로운 작업 공간을 만드세요.</p>
+          </div>
+        </header>
+        <div id="workspace-list" class="workspace-list"></div>
+        <div id="workspace-empty" class="workspace-empty" hidden>
+          저장된 작업 공간이 없습니다. 새 작업 공간을 만들어 주세요.
+        </div>
+        <form id="workspace-editor" class="workspace-editor" hidden>
+          <input id="workspace-id" type="hidden">
+          <input id="workspace-source-id" type="hidden">
+          <h2 id="workspace-editor-title">새 작업 공간</h2>
+          <p id="workspace-clone-note" class="workspace-clone-note" hidden>
+            세션 구성과 배치만 복제하며 명령 히스토리와 provider 연결 정보는 복사하지 않습니다.
+          </p>
+          <label>
+            <span>이름</span>
+            <input
+              id="workspace-name"
+              type="text"
+              maxlength="80"
+              required
+              placeholder="예: 터미널 앱 개발"
+            >
+          </label>
+          <label>
+            <span>설명</span>
+            <textarea
+              id="workspace-description"
+              maxlength="500"
+              rows="3"
+              placeholder="이 작업 공간에서 하는 일을 적어 주세요."
+            ></textarea>
+          </label>
+          <label class="workspace-elevation-option">
+            <input id="workspace-elevation" type="checkbox">
+            <span>
+              관리자 권한으로 실행
+              <small>이 작업 공간을 열 때 UAC 확인 후 Terminal Deck을 다시 시작합니다.</small>
+            </span>
+          </label>
+          <div class="dialog-actions">
+            <button id="cancel-workspace-edit" type="button">취소</button>
+            <button type="submit">저장</button>
+          </div>
+        </form>
+        <footer class="workspace-picker-actions">
+          <button id="new-workspace" type="button">＋ 새 작업 공간</button>
+          <button id="open-ephemeral-workspace" type="button">
+            일회성 작업 공간
+          </button>
+        </footer>
+      </section>
+    </dialog>
+    <div class="main-content">
+      <div class="work-area">
+        <!--
+          접힘 상태에서 남는 rail. 패널 내용은 파괴하지 않고 CSS로만 감춘다.
+        -->
+        <div id="session-panel-rail" class="session-panel-rail" hidden>
+          <button
+            id="expand-session-panel"
+            type="button"
+            aria-controls="session-panel"
+            aria-expanded="false"
+          >⟩</button>
+          <span id="session-panel-rail-count" class="session-panel-rail-count"></span>
+          <span id="session-panel-rail-status" class="session-panel-rail-status"></span>
+        </div>
+        <aside id="session-panel" class="session-panel" aria-label="terminal 목록">
+          <div class="session-panel-header">
+            <button
+              id="collapse-session-panel"
+              class="session-panel-collapse"
+              type="button"
+              aria-controls="session-panel"
+              aria-expanded="true"
+            >⟨</button>
+            <strong>세션</strong>
+            <span id="session-count" class="session-panel-count">0</span>
+            <div class="session-panel-actions">
+              <button id="new-tab" type="button" title="직전 시작 폴더에 새 세션" aria-label="새 세션">＋</button>
+              <button id="new-tab-with-folder" type="button" title="폴더를 선택해 새 세션">폴더에서 열기</button>
+            </div>
+          </div>
+          <div class="session-index-tools">
+            <input id="session-search" type="search" placeholder="세션 검색" aria-label="세션 검색">
+            <select id="session-group" aria-label="세션 정렬">
+              <option value="none">등록순</option>
+              <option value="rotation">순환 번호순</option>
+              <option value="recent">최근 활동순</option>
+            </select>
+          </div>
+          <div id="session-list" class="session-list" role="listbox" aria-label="세션"></div>
+          <p id="session-list-empty" class="session-list-empty">
+            아직 세션이 없습니다. ＋로 새 세션을 여세요.
+          </p>
+        </aside>
+        <div
+          id="session-panel-resizer"
+          class="panel-resizer"
+          role="separator"
+          aria-label="terminal 목록과 터미널 영역 너비 조절"
+          aria-orientation="vertical"
+          tabindex="0"
+        ></div>
+        <!-- 타일은 deck 모델(deck.tiles)에서 렌더러가 만든다. -->
+        <main id="session-deck" class="session-deck" aria-label="Session Deck">
+          <!-- 배치 편집 중에만 보이는 빈 cell 클릭 overlay. -->
+          <div id="deck-grid-overlay" class="deck-grid-overlay" hidden></div>
+        </main>
+        <div
+          id="panel-resizer"
+          class="panel-resizer"
+          role="separator"
+          aria-label="터미널 영역과 terminal 도구 패널 너비 조절"
+          aria-orientation="vertical"
+          tabindex="0"
+        ></div>
+        <aside id="command-panel" class="command-panel" aria-label="terminal 도구">
+          <section class="inspector-target" aria-label="현재 대상 terminal">
+            <div class="inspector-target-main">
+              <span class="inspector-target-label">대상</span>
+              <strong id="inspector-target-name">대상 없음</strong>
+              <span id="inspector-target-meta"></span>
+            </div>
+            <button
+              id="collapse-command-panel"
+              class="inspector-collapse"
+              type="button"
+              aria-controls="command-panel"
+              aria-expanded="true"
+            >⟩</button>
+          </section>
+          <section id="favorites-panel" aria-label="명령 즐겨찾기">
+            <div class="utility-panel-heading">
+              <div>
+                <strong>명령 즐겨찾기</strong>
+                <span id="favorite-count">0</span>
+              </div>
+              <button id="add-favorite" type="button">＋ 등록</button>
+            </div>
+            <div id="favorite-list" class="utility-list"></div>
+          </section>
+          <div class="side-panel-lower">
+            <nav class="side-panel-tabs" role="tablist" aria-label="블록 및 히스토리">
+              <button
+                id="side-panel-tab-blocks"
+                type="button"
+                role="tab"
+                data-panel="blocks"
+                class="active"
+                aria-selected="true"
+                aria-controls="blocks-panel"
+              >블록</button>
+              <button
+                id="side-panel-tab-history"
+                type="button"
+                role="tab"
+                data-panel="history"
+                aria-selected="false"
+                aria-controls="history-panel"
+              >히스토리</button>
+            </nav>
+            <section
+              id="blocks-panel"
+              class="side-panel-view"
+              role="tabpanel"
+              aria-labelledby="side-panel-tab-blocks"
+            >
+              <div class="command-panel-heading">
+                <span>명령 블록</span>
+                <div class="command-panel-heading-actions">
+                  <button id="copy-interactive-cli" type="button" hidden>CLI 응답 복사</button>
+                  <button id="command-block-count" type="button" disabled>전체 복사 · 0</button>
+                  <button id="clear-command-blocks" type="button">전체 지우기</button>
+                </div>
+              </div>
+              <div id="command-block-toolbar">
+                <label>
+                  <input id="select-all-command-blocks" type="checkbox">
+                  <span id="selected-command-block-count">0개 선택</span>
+                </label>
+                <div>
+                  <button id="copy-selected-command-blocks" type="button">선택 복사</button>
+                  <button id="save-selected-command-blocks" type="button">선택 저장</button>
+                  <button id="delete-selected-command-blocks" type="button">선택 삭제</button>
+                </div>
+              </div>
+              <div id="command-block-notice">
+                PowerShell 명령을 실행하면 블록이 여기에 표시됩니다.
+              </div>
+              <div id="command-block-list"></div>
+            </section>
+            <section
+              id="history-panel"
+              class="side-panel-view"
+              role="tabpanel"
+              aria-labelledby="side-panel-tab-history"
+              hidden
+            >
+              <div class="utility-panel-heading">
+                <div>
+                  <strong>terminal 히스토리</strong>
+                  <span id="history-count">0</span>
+                </div>
+                <button id="clear-history" type="button">전체 지우기</button>
+              </div>
+              <p class="utility-panel-help">더블클릭하면 다시 실행됩니다. ↑/↓로도 불러올 수 있습니다.</p>
+              <div id="history-list" class="utility-list"></div>
+            </section>
+          </div>
+        </aside>
+        <!--
+          접힘 상태에서 남는 rail. 패널 내용은 파괴하지 않고 CSS로만 감춘다.
+        -->
+        <div id="command-panel-rail" class="command-panel-rail" hidden>
+          <button
+            id="expand-command-panel"
+            type="button"
+            aria-controls="command-panel"
+            aria-expanded="false"
+          >⟨</button>
+          <span id="command-panel-rail-status" class="command-panel-rail-status"></span>
+        </div>
+      </div>
+    </div>
+    <dialog id="paste-confirm-dialog">
+      <form method="dialog" class="paste-confirm">
+        <h2 id="paste-confirm-title">붙여넣고 실행 확인</h2>
+        <p id="paste-confirm-reason"></p>
+        <p id="paste-confirm-target" class="paste-confirm-target"></p>
+        <pre id="paste-confirm-preview"></pre>
+        <div class="dialog-actions">
+          <button value="cancel">취소</button>
+          <button id="confirm-paste" value="confirm">확인 후 실행</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="favorite-dialog">
+      <form id="favorite-form">
+        <h2 id="favorite-dialog-title">즐겨찾기 등록</h2>
+        <input id="favorite-id" type="hidden">
+        <label>
+          <span>이름</span>
+          <input id="favorite-name" type="text" maxlength="120" required>
+        </label>
+        <label>
+          <span>명령</span>
+          <textarea id="favorite-command" rows="8" required></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button id="cancel-favorite" type="button">취소</button>
+          <button type="submit">저장</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="add-tile-dialog">
+      <form id="add-tile-form" method="dialog">
+        <h2>타일 추가</h2>
+        <p id="add-tile-cell" class="add-tile-cell"></p>
+        <div class="add-tile-kinds" role="radiogroup" aria-label="타일 종류">
+          <label>
+            <input type="radio" name="add-tile-kind" value="rotating" checked>
+            <span>순환 칸 추가</span>
+          </label>
+          <label>
+            <input type="radio" name="add-tile-kind" value="pinned">
+            <span>고정 칸 추가</span>
+          </label>
+        </div>
+        <div id="add-tile-session-picker">
+          <label>
+            <span>고정할 terminal</span>
+            <select id="add-tile-session" size="5"></select>
+          </label>
+          <p id="add-tile-session-empty" class="add-tile-empty" hidden>
+            고정할 수 있는 terminal이 없습니다.
+          </p>
+        </div>
+        <div class="dialog-actions">
+          <button id="cancel-add-tile" type="button">취소</button>
+          <button id="confirm-add-tile" type="submit">추가</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="settings-dialog">
+      <form id="settings-form">
+        <h2>설정</h2>
+        <label>
+          <span>유휴 판정 시간</span>
+          <span class="settings-inline-control">
+            <input id="idle-seconds" type="number" min="1" max="60" step="1" value="3">
+            <span>초</span>
+          </span>
+        </label>
+        <label>
+          <span>PowerShell 실행 파일</span>
+          <span class="settings-path-control">
+            <input id="shell-path" type="text" readonly placeholder="자동 감지">
+            <button id="choose-shell-path" type="button">찾기</button>
+            <button id="reset-shell-path" type="button">자동</button>
+          </span>
+          <small>변경한 경로는 새로 여는 terminal부터 적용됩니다.</small>
+        </label>
+        <label class="settings-checkbox">
+          <input id="inactive-session-notifications" type="checkbox" checked>
+          <span>비활성 terminal이 유휴로 바뀌면 앱 안에서 알림</span>
+        </label>
+        <label class="settings-checkbox">
+          <input id="clear-command-blocks-on-clear-host" type="checkbox">
+          <span>cls / Clear-Host 실행 시 현재 terminal의 명령 블록 전체 지우기</span>
+        </label>
+        <div class="dialog-actions">
+          <button id="cancel-settings" type="button">취소</button>
+          <button type="submit">저장</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="diagnostics-dialog">
+      <section class="diagnostics-view">
+        <h2>실행 진단</h2>
+        <p>CLI 설치 여부와 현재 세션의 Git 문맥을 필요할 때만 조회합니다.</p>
+        <div id="diagnostics-summary" class="diagnostics-summary">조회 중…</div>
+        <details class="diagnostics-raw">
+          <summary>원본 JSON</summary>
+          <pre id="diagnostics-output"></pre>
+        </details>
+        <div class="dialog-actions">
+          <button id="copy-diagnostics" type="button">복사</button>
+          <button id="close-diagnostics" type="button">닫기</button>
+        </div>
+      </section>
+    </dialog>
+    <dialog id="attention-center-dialog">
+      <section class="attention-center-view">
+        <header>
+          <div>
+            <h2>확인할 세션</h2>
+            <p>실패, 종료, 완료 결과를 표시하며 해당 세션으로 이동하면 확인 처리됩니다.</p>
+          </div>
+          <button id="close-attention-center" type="button" aria-label="닫기">×</button>
+        </header>
+        <div id="attention-center-list" class="attention-center-list"></div>
+        <p id="attention-center-empty" class="productivity-empty">확인할 세션이 없습니다.</p>
+        <footer class="dialog-actions">
+          <button id="acknowledge-all-attention" type="button">모두 확인</button>
+        </footer>
+      </section>
+    </dialog>
+    <dialog id="quick-switcher-dialog">
+      <section class="quick-switcher-view">
+        <header>
+          <h2>세션으로 이동</h2>
+          <button id="close-quick-switcher" type="button" aria-label="닫기">×</button>
+        </header>
+        <input
+          id="quick-switcher-search"
+          type="search"
+          placeholder="이름, 폴더, branch, 상태 검색"
+          aria-label="빠른 세션 검색"
+          autocomplete="off"
+        >
+        <div
+          id="quick-switcher-list"
+          class="quick-switcher-list"
+          role="listbox"
+          aria-label="빠른 세션 목록"
+        ></div>
+        <p id="quick-switcher-empty" class="productivity-empty">검색 결과가 없습니다.</p>
+        <p class="quick-switcher-hint">↑↓ 선택 · Enter 이동 · Esc 닫기</p>
+      </section>
+    </dialog>
+    <!--
+      숨은 세션의 xterm pane 주차 영역. Terminal.open()을 다시 부르지 않고
+      pane을 여기로 옮겨 화면에서만 감춘다.
+    -->
+    <div id="terminal-parking" hidden aria-hidden="true"></div>
+    <div id="toast-container" aria-live="polite"></div>
+    <script src="./dist/renderer.js"></script>
+  </body>
+</html>

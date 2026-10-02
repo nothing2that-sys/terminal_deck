@@ -1,0 +1,49 @@
+{
+  "name": "multi-session-manager",
+  "productName": "Terminal Deck",
+  "version": "0.10.1",
+  "private": true,
+  "description": "A Windows terminal workspace for multiple PowerShell sessions",
+  "author": "Terminal Deck contributors",
+  "main": "src/bootstrap.js",
+  "scripts": {
+    "build": "esbuild src/renderer.js --bundle --outfile=dist/renderer.js --platform=browser --format=iife",
+    "package:win": "npm run build && electron-forge package --platform=win32 --arch=x64",
+    "make:win": "npm run build && electron-forge make --platform=win32 --arch=x64",
+    "start": "npm run build && electron .",
+    "smoke:multi-pty": "electron scripts/electron-multi-pty-smoke.js",
+    "smoke:osc133": "electron scripts/electron-osc133-smoke.js",
+    "smoke:pty": "electron scripts/electron-pty-smoke.js",
+    "smoke:pty-elevated": "electron scripts/electron-elevated-pty-smoke.js",
+    "smoke:pty-tree": "electron scripts/electron-pty-tree-smoke.js",
+    "smoke:renderer": "electron scripts/electron-renderer-smoke.js",
+    "smoke:save": "electron scripts/electron-workspace-save-smoke.js",
+    "test": "node --test",
+    "check": "npm run build && npm test && npm run smoke:save && npm run smoke:pty && npm run smoke:pty-tree && npm run smoke:multi-pty && npm run smoke:osc133 && npm run smoke:renderer"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/xterm": "6.0.0",
+    "node-pty": "1.1.0"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "8.0.1",
+    "@electron-forge/maker-squirrel": "8.0.1",
+    "@electron-forge/maker-zip": "8.0.1",
+    "@electron-forge/plugin-auto-unpack-natives": "8.0.1",
+    "electron": "43.7.7",
+    "esbuild": "0.28.1"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nothing2that-sys/terminal_deck.git"
+  },
+  "homepage": "https://github.com/nothing2that-sys/terminal_deck",
+  "bugs": {
+    "url": "https://github.com/nothing2that-sys/terminal_deck/issues"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}
