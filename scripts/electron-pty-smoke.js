@@ -34,9 +34,12 @@ const expectedCp949 = 'CP949 한글 출력 테스트';
 const script = [
   "$cp949File = Join-Path $env:TEMP 'terminal-manager-cp949-smoke.txt'",
   '$cp949 = [Text.Encoding]::GetEncoding(949)',
+  // Explicitly select the native-output codec on English and Korean Windows.
+  '[Console]::OutputEncoding = $cp949',
   `[IO.File]::WriteAllText($cp949File, "${expectedCp949}\`r\`n", $cp949)`,
   'cmd.exe /d /c "chcp 949>nul & type `"$cp949File`""',
   'Remove-Item -LiteralPath $cp949File',
+  '[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)',
   `Write-Output "${expectedUtf8}"`
 ].join('; ');
 
